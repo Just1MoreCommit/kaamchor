@@ -31,6 +31,7 @@ Follow these rules strictly to ensure all generated code matches the natural cod
 ## 5. Naming & Structure
 - Use short, natural student variable names: `n`, `m`, `i`, `j`, `key`, `msg`, `arr`, `in_doc`, `out_doc`, `temp`, `ans`, `res`, `curr`, `prev`.
 - Avoid enterprise names (`calculateRsaCiphertextBlock` -> `encrypt`).
+- **Functions:** You can make functions if it is kinda required (e.g. `encrypt()`, `decrypt()`, `find_min()`, or when logic cleanly separates into a step requested by the task). Keep them simple, straightforward, and procedural. Do **NOT** over-engineer anything (no unsolicited classes, factories, wrapper hierarchies, or speculative abstractions).
 - Keep code flat: define functions simply and invoke them at the bottom in a `###MAIN###` or basic execution block.
 
 ## 6. Language-Specific Guidelines

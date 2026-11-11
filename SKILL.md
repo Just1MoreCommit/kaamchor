@@ -49,6 +49,7 @@ Locate the `kaamchor` skill directory (`<SKILL_DIR>`) relative to this `SKILL.md
 
 1. **Human Imperfection Rules:**
    - Write code like a real undergraduate student in a timed lab session.
+   - You can create functions if it's kinda required for the problem, but keep them simple and procedural—do **NOT** over-engineer anything.
    - Make whitespaces, spaces around brackets/operators, and empty lines slightly uneven and human (e.g. `message[i: i+214]`, simple `open()` and `close()`, a casual `return` at the end of void functions, simple `#Main` or `###MAIN###` tags).
    - Do **NOT** write over-engineered, PEP-8 / Google-linter clean, textbook enterprise code.
    - **NEVER** write docstrings, Doxygen, or full-sentence comments ending in periods.
