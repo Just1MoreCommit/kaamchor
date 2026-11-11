@@ -2,11 +2,13 @@
 """
 scripts/capture_run.py
 Executes a compiled binary or script, feeds interactive stdin inputs while echoing
-them inline (simulating live terminal typing), prepends a realistic VS Code terminal prompt,
-and renders a crisp VS Code dark-mode terminal PNG screenshot.
+them inline (simulating live terminal typing), auto-detects host VS Code terminal settings,
+prepends an authentic terminal prompt matching the user's active folder,
+and renders a crisp VS Code terminal screenshot.
 """
 
 import os
+import re
 import sys
 import time
 import json
@@ -16,7 +18,23 @@ import subprocess
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-# Terminal Dark Palette
+# Try importing auto-detector
+try:
+    from scripts.detect_vscode import detect_vscode_settings
+except ImportError:
+    try:
+        from detect_vscode import detect_vscode_settings
+    except ImportError:
+        def detect_vscode_settings(profile_path=None):
+            return {
+                "font_family_name": "Consolas",
+                "font_file_path": None,
+                "font_size": 14,
+                "terminal_bg_hex": "#181818",
+                "background_hex": "#1E1E1E",
+            }
+
+# Terminal Palette
 TERM_PALETTE = {
     "bg": "#181818",
     "top_bar_bg": "#1F1F1F",
@@ -35,28 +53,33 @@ def hex_to_rgb(hex_code: str):
     return tuple(int(hex_code[i : i + 2], 16) for i in (0, 2, 4))
 
 
-def resolve_font(profile_path=None, size=15):
+def resolve_font(detected_settings, size=None):
+    """Resolves font file from detected VS Code settings or system fallbacks."""
+    if size is None:
+        size = detected_settings.get("font_size", 14)
+
+    # 1. First priority: detected VS Code font from user's settings
+    font_file = detected_settings.get("font_file_path")
+    if font_file and os.path.isfile(font_file):
+        try:
+            return ImageFont.truetype(font_file, size=size)
+        except Exception:
+            pass
+
+    # 2. Candidate fallbacks
     candidates = [
         "C:/Windows/Fonts/consola.ttf",
         "C:/Windows/Fonts/cascadiamono.ttf",
         "/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
     ]
-    if profile_path and Path(profile_path).is_file():
-        try:
-            with open(profile_path, "r", encoding="utf-8") as f:
-                prof = json.load(f)
-                custom_candidates = prof.get("vscode_settings", {}).get("font_family_candidates", [])
-                candidates = custom_candidates + candidates
-        except Exception:
-            pass
-
-    for font_path in candidates:
-        if os.path.isfile(font_path):
+    for fp in candidates:
+        if os.path.isfile(fp):
             try:
-                return ImageFont.truetype(font_path, size=size)
+                return ImageFont.truetype(fp, size=size)
             except Exception:
                 continue
+
     return ImageFont.load_default()
 
 
@@ -106,12 +129,10 @@ def run_interactive_command(cmd: str, inputs: list = None, timeout=15):
             last_chunk_len = curr_len
             last_activity = time.time()
         else:
-            # Child process appears idle / waiting for stdin
             if (time.time() - last_activity > 0.18) and (input_idx < len(inputs)):
                 inp_str = str(inputs[input_idx])
                 input_idx += 1
                 inp_bytes = (inp_str + "\n").encode("utf-8")
-                # Record the echoed input in visual transcript
                 output_chunks.append((time.time(), inp_bytes))
                 try:
                     proc.stdin.write(inp_bytes)
@@ -122,7 +143,6 @@ def run_interactive_command(cmd: str, inputs: list = None, timeout=15):
                 last_chunk_len = len(output_chunks)
         time.sleep(0.04)
 
-    # If any remaining inputs were never sent and process still alive
     if proc.poll() is None:
         while input_idx < len(inputs):
             inp_str = str(inputs[input_idx])
@@ -142,19 +162,33 @@ def run_interactive_command(cmd: str, inputs: list = None, timeout=15):
 
     finished.wait(timeout=2)
 
-    # Assemble captured bytes in order
     sorted_chunks = sorted(output_chunks, key=lambda x: x[0])
     raw_bytes = b"".join(c[1] for c in sorted_chunks)
     transcript = raw_bytes.decode("utf-8", errors="replace")
     return transcript
 
 
+def sanitize_terminal_output(raw_output: str) -> str:
+    """
+    Ensures terminal output follows clean styling:
+    Converts '----heading----' or '====heading====' into clean 'heading: '
+    """
+    lines = raw_output.splitlines()
+    cleaned = []
+    for line in lines:
+        # Match e.g. "----Heading----" or "====Heading===="
+        m = re.match(r"^[-=_]{2,}\s*([^-_=]+?)\s*[-=_]{2,}$", line.strip())
+        if m:
+            heading_name = m.group(1).strip()
+            cleaned.append(f"{heading_name}:")
+        else:
+            cleaned.append(line)
+    return "\n".join(cleaned)
+
+
 def clean_display_command(raw_cmd: str) -> str:
     """Simplify verbose file paths for realistic terminal display."""
-    # Convert things like "submission/src/task1.cpp" to "task1.cpp"
-    cmd = raw_cmd.strip()
-    cmd = cmd.replace("\\", "/")
-    # Replace long paths in command with basenames
+    cmd = raw_cmd.strip().replace("\\", "/")
     tokens = cmd.split(" ")
     cleaned_tokens = []
     for tok in tokens:
@@ -170,23 +204,21 @@ def render_terminal_screenshot(
     command_str: str,
     output_text: str,
     out_path: str,
-    profile_path=None,
+    detected_settings=None,
     shell_title="pwsh",
 ):
     """
-    Renders terminal session output into a crisp VS Code dark terminal PNG image.
+    Renders terminal session output into a crisp VS Code dark terminal PNG image
+    matching user's detected font, font size, and active terminal directory.
     """
-    font_size = 15
-    if profile_path and Path(profile_path).is_file():
-        try:
-            with open(profile_path, "r", encoding="utf-8") as f:
-                prof = json.load(f)
-                font_size = prof.get("vscode_settings", {}).get("font_size_pt", 15)
-        except Exception:
-            pass
+    if detected_settings is None:
+        detected_settings = detect_vscode_settings()
 
-    font = resolve_font(profile_path, size=font_size)
-    bar_font = resolve_font(profile_path, size=12)
+    font_size = detected_settings.get("font_size", 14)
+    term_bg = detected_settings.get("terminal_bg_hex", TERM_PALETTE["bg"])
+
+    font = resolve_font(detected_settings, size=font_size)
+    bar_font = resolve_font(detected_settings, size=12)
 
     dummy_img = Image.new("RGB", (100, 100))
     dummy_draw = ImageDraw.Draw(dummy_img)
@@ -195,10 +227,11 @@ def render_terminal_screenshot(
     char_w = max(bbox_m[2] - bbox_m[0], 9)
     line_h = max(bbox_m[3] - bbox_m[1] + 6, 22)
 
-    # Process and wrap output lines
-    raw_lines = output_text.splitlines()
+    # Clean headings: replace "----heading----" with "heading: "
+    sanitized_output = sanitize_terminal_output(output_text)
+    raw_lines = sanitized_output.splitlines()
     wrapped_lines = []
-    max_line_len = max(len(prompt_str + command_str), 40)
+    max_line_len = max(len(prompt_str + command_str), 45)
 
     for rline in raw_lines:
         rline = rline.replace("\t", "    ")
@@ -207,14 +240,13 @@ def render_terminal_screenshot(
             if len(rline) > max_line_len:
                 max_line_len = len(rline)
         else:
-            # Word-wrap long lines
             chunks = [rline[i : i + 90] for i in range(0, len(rline), 90)]
             for ch in chunks:
                 wrapped_lines.append(ch)
                 if len(ch) > max_line_len:
                     max_line_len = len(ch)
 
-    total_lines = 1 + len(wrapped_lines)  # prompt line + output lines
+    total_lines = 1 + len(wrapped_lines)
 
     top_bar_h = 32
     pad_left = 18
@@ -225,7 +257,7 @@ def render_terminal_screenshot(
     canvas_w = max(int(pad_left + (max_line_len * char_w) + pad_right), 850)
     canvas_h = int(top_bar_h + pad_top + (total_lines * line_h) + pad_bottom)
 
-    img = Image.new("RGB", (canvas_w, canvas_h), hex_to_rgb(TERM_PALETTE["bg"]))
+    img = Image.new("RGB", (canvas_w, canvas_h), hex_to_rgb(term_bg))
     draw = ImageDraw.Draw(img)
 
     # 1. Top Terminal Tab Bar
@@ -239,12 +271,10 @@ def render_terminal_screenshot(
     curr_y = top_bar_h + pad_top
     curr_x = pad_left
 
-    # Draw prompt in blue
     draw.text((curr_x, curr_y), prompt_str, font=font, fill=hex_to_rgb(TERM_PALETTE["prompt_ps"]))
     p_bbox = dummy_draw.textbbox((0, 0), prompt_str, font=font)
     curr_x += (p_bbox[2] - p_bbox[0])
 
-    # Draw command in yellow/white
     draw.text((curr_x, curr_y), command_str, font=font, fill=hex_to_rgb(TERM_PALETTE["command"]))
     curr_y += line_h
 
@@ -270,43 +300,36 @@ def main():
 
     args = parser.parse_args()
 
-    # Load profile configurations
-    cwd_label = args.cwd_label or os.getcwd()
-    prompt_str = f"PS {cwd_label}> "
-    shell_title = "pwsh"
+    # Auto-detect host VS Code settings
+    detected = detect_vscode_settings(args.profile)
 
-    if args.profile and Path(args.profile).is_file():
-        try:
-            with open(args.profile, "r", encoding="utf-8") as f:
-                prof = json.load(f)
-                shell_style = prof.get("os_shell_style", "powershell")
-                if shell_style.lower() in ("bash", "linux", "sh"):
-                    shell_title = "bash"
-                    tmpl = prof.get("linux_prompt_template", "user@host:{cwd}$ ")
-                    prompt_str = tmpl.format(cwd=Path(cwd_label).name or "~")
-                else:
-                    shell_title = "pwsh"
-                    tmpl = prof.get("terminal_prompt_template", "PS {cwd}> ")
-                    prompt_str = tmpl.format(cwd=cwd_label)
-        except Exception:
-            pass
+    # Resolve active terminal directory from host's opened workspace folder
+    if args.cwd_label:
+        active_cwd = args.cwd_label
+    else:
+        active_cwd = os.path.abspath(os.getcwd())
+
+    if os.name == "nt":
+        shell_title = "pwsh"
+        prompt_str = f"PS {active_cwd}> "
+    else:
+        shell_title = "bash"
+        prompt_str = f"user@host:{Path(active_cwd).name}$ "
 
     display_cmd = args.display_cmd or clean_display_command(args.cmd)
 
     print(f"Executing: {args.cmd}")
     print(f"Simulating inputs: {args.inputs}")
     transcript = run_interactive_command(args.cmd, inputs=args.inputs)
-    print("Execution complete. Captured transcript:")
-    print("-" * 40)
+    print("Execution complete. Output:")
     print(transcript)
-    print("-" * 40)
 
     render_terminal_screenshot(
         prompt_str=prompt_str,
         command_str=display_cmd,
         output_text=transcript,
         out_path=args.out,
-        profile_path=args.profile,
+        detected_settings=detected,
         shell_title=shell_title,
     )
 

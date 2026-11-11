@@ -3,21 +3,25 @@
 Follow these rules strictly when compiling submission reports.
 
 ## 1. No Unsolicited Content (CRITICAL)
+- **NO LAB NAME ON SUBSEQUENT PAGES:** Do NOT write the Lab name, Course title, or header blocks on ANY page other than the cover page. Page 2 starts directly with the first task.
 - **NO DESCRIPTIONS OR EXPLANATIONS:** Do NOT write paragraphs explaining what you did in each task unless the lab manual explicitly states: *"Explain your approach"*, *"Provide reasoning"*, or asks direct questions. If not requested, omit explanations entirely and jump straight from the Task heading to `Code:` and `Output:`.
 - **NO CONCLUSION:** Do NOT add a "Conclusion" section unless the user or lab manual explicitly requests it.
 - **NO INVENTED SECTIONS:** Do NOT add complexity analysis, theoretical discussions, or summaries unless explicitly instructed in the task.
 
 ## 2. Formatting & Typography
-- **Font Family:** Strictly **Times New Roman** for all report text.
-- **Font Color:** Strictly **Black** (`RGBColor(0, 0, 0)`) for all text. No colored headings, no colored subtitles.
-- **No Italics:** Do NOT make any text italic. Everything is standard regular text or bold headings.
-- **No Complex Subheadings or Word Table Boxes:**
-  - Do NOT use styled Word heading levels or colored banner ribbons.
-  - Headings are plain Normal paragraphs with larger font sizes:
-    - Task title: 22pt, Times New Roman, Black.
-    - `Code:`: 20pt, Times New Roman, Black.
-    - `Output:`: 18pt–20pt, Times New Roman, Black.
-- **Code Presentation:** Plain text, black font, 10.5pt, standard line breaks, exactly like student pasted code in Word. No shaded table cells, no syntax-highlighted rainbow colors.
+- **Font Family:** Strictly **Times New Roman** for all report document prose and headings.
+- **Font Color:** Strictly **Black** (`RGB(0, 0, 0)`) for all text prose and headings.
+- **No Italics:** Do NOT make any text italic.
+- **Heading Hierarchy:**
+  - **Task Heading:** Font size **18pt**, Times New Roman, Black, not underlined, no italics.
+  - **Subheadings for Code and Output:** Font size **16pt**, Times New Roman, Black, **UNDERLINED** (`Code:`, `Output:`).
+- **Code Presentation:**
+  - Formatted and color-coded as in VS Code according to detected host VS Code settings/theme.
+  - Black/dark background (`#1E1E1E`).
+  - Console-esque font (e.g. `Lilex` or `Consolas` detected from user's VS Code settings) at 10pt.
+  - Preserves exact student whitespaces, indentation, and random formatting.
+- **Output Presentation:**
+  - Followed by the terminal output screenshot image.
 
 ## 3. Tone (When Explanations Are Explicitly Required)
 If and only if the lab manual explicitly asks for a written explanation:

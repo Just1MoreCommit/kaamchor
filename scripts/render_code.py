@@ -4,6 +4,7 @@ scripts/render_code.py
 Converts a source code file (.cpp, .py, .c, .java, etc.) into:
 1. A syntax-highlighted VS Code style PNG image (--out), and/or
 2. A JSON list of lines with (text, hex_color) tuples (--out-tokens) for Word table embedding.
+Auto-detects host VS Code font and theme configurations.
 """
 
 import os
@@ -26,6 +27,20 @@ from pygments.token import (
     Punctuation,
     Text,
 )
+
+try:
+    from scripts.detect_vscode import detect_vscode_settings
+except ImportError:
+    try:
+        from detect_vscode import detect_vscode_settings
+    except ImportError:
+        def detect_vscode_settings(profile_path=None):
+            return {
+                "font_family_name": "Consolas",
+                "font_file_path": None,
+                "font_size": 14,
+                "background_hex": "#1E1E1E",
+            }
 
 # VS Code Dark+ Color Palette
 VSCODE_COLORS = {
@@ -75,23 +90,21 @@ def get_token_color(tokentype) -> str:
     return VSCODE_COLORS["foreground"]
 
 
-def resolve_font(profile_path=None, size=15):
-    """Resolve a suitable monospace font from profile.json or system defaults."""
+def resolve_font(detected_settings, size=15):
+    """Resolves font from detected host VS Code settings or system fallbacks."""
+    font_file = detected_settings.get("font_file_path")
+    if font_file and os.path.isfile(font_file):
+        try:
+            return ImageFont.truetype(font_file, size=size)
+        except Exception:
+            pass
+
     candidates = [
         "C:/Windows/Fonts/consola.ttf",
         "C:/Windows/Fonts/cascadiamono.ttf",
         "/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
     ]
-    if profile_path and Path(profile_path).is_file():
-        try:
-            with open(profile_path, "r", encoding="utf-8") as f:
-                prof = json.load(f)
-                custom_candidates = prof.get("vscode_settings", {}).get("font_family_candidates", [])
-                candidates = custom_candidates + candidates
-        except Exception:
-            pass
-
     for font_path in candidates:
         if os.path.isfile(font_path):
             try:
@@ -140,26 +153,20 @@ def extract_highlighted_tokens(src_path: str):
 def render_code_to_image(src_path: str, out_path: str, profile_path=None):
     """
     Renders syntax-highlighted source code into a pixel-accurate VS Code editor screenshot.
-    Includes active file tab header, line numbers, and Dark+ theme styling.
+    Uses detected host VS Code font and Dark+ theme styling.
     """
     src_file = Path(src_path)
     lines = extract_highlighted_tokens(src_path)
     filename = src_file.name
 
-    font_size = 15
-    if profile_path and Path(profile_path).is_file():
-        try:
-            with open(profile_path, "r", encoding="utf-8") as f:
-                prof = json.load(f)
-                font_size = prof.get("vscode_settings", {}).get("font_size_pt", 15)
-        except Exception:
-            pass
+    detected = detect_vscode_settings(profile_path)
+    font_size = detected.get("font_size", 14)
+    bg_hex = detected.get("background_hex", VSCODE_COLORS["background"])
 
-    code_font = resolve_font(profile_path, size=font_size)
-    tab_font = resolve_font(profile_path, size=13)
-    gutter_font = resolve_font(profile_path, size=font_size)
+    code_font = resolve_font(detected, size=font_size)
+    tab_font = resolve_font(detected, size=13)
+    gutter_font = resolve_font(detected, size=font_size)
 
-    # Measure character bounding box
     dummy_img = Image.new("RGB", (100, 100))
     dummy_draw = ImageDraw.Draw(dummy_img)
 
@@ -171,7 +178,6 @@ def render_code_to_image(src_path: str, out_path: str, profile_path=None):
     gutter_digits = max(len(str(total_lines)), 2)
     gutter_w = (gutter_digits + 2) * char_w + 16
 
-    # Calculate max code line width
     max_line_chars = 0
     for line in lines:
         line_chars = sum(len(tok["text"].replace("\t", "    ")) for tok in line)
@@ -179,50 +185,40 @@ def render_code_to_image(src_path: str, out_path: str, profile_path=None):
             max_line_chars = line_chars
 
     code_area_w = max(max_line_chars * char_w + 40, 600)
-    canvas_w = int(gutter_w + code_area_w)
-    # Ensure minimum width for standard editor view
-    canvas_w = max(canvas_w, 820)
+    canvas_w = max(int(gutter_w + code_area_w), 820)
 
     tab_h = 35
     padding_top = 12
     padding_bottom = 16
     canvas_h = int(tab_h + padding_top + (total_lines * line_h) + padding_bottom)
 
-    img = Image.new("RGB", (canvas_w, canvas_h), hex_to_rgb(VSCODE_COLORS["background"]))
+    img = Image.new("RGB", (canvas_w, canvas_h), hex_to_rgb(bg_hex))
     draw = ImageDraw.Draw(img)
 
-    # 1. Draw VS Code Tab Header Bar
+    # 1. VS Code Tab Header Bar
     draw.rectangle([(0, 0), (canvas_w, tab_h)], fill=hex_to_rgb(VSCODE_COLORS["tab_bar_bg"]))
 
-    # Active Tab
     tab_bbox = dummy_draw.textbbox((0, 0), filename, font=tab_font)
     tab_text_w = tab_bbox[2] - tab_bbox[0]
     tab_w = tab_text_w + 50
-    draw.rectangle([(0, 0), (tab_w, tab_h)], fill=hex_to_rgb(VSCODE_COLORS["tab_active_bg"]))
-    # Blue active indicator line on top of active tab
+    draw.rectangle([(0, 0), (tab_w, tab_h)], fill=hex_to_rgb(bg_hex))
     draw.rectangle([(0, 0), (tab_w, 2)], fill=hex_to_rgb(VSCODE_COLORS["tab_border_top"]))
 
-    # Tab filename text
     draw.text((18, 9), filename, font=tab_font, fill=hex_to_rgb(VSCODE_COLORS["tab_active_text"]))
-    # Tab close 'x' icon
     close_x = tab_w - 20
     draw.text((close_x, 9), "×", font=tab_font, fill=hex_to_rgb("#858585"))
+    draw.line([(tab_w, tab_h - 1), (canvas_w, tab_h - 1)], fill=hex_to_rgb(bg_hex), width=1)
 
-    # Divider line under inactive tabs
-    draw.line([(tab_w, tab_h - 1), (canvas_w, tab_h - 1)], fill=hex_to_rgb("#1E1E1E"), width=1)
-
-    # 2. Render Line Numbers and Code
+    # 2. Line Numbers & Code Tokens
     curr_y = tab_h + padding_top
 
     for line_idx, line in enumerate(lines, start=1):
-        # Line Number in Gutter
         line_num_str = str(line_idx)
         num_bbox = dummy_draw.textbbox((0, 0), line_num_str, font=gutter_font)
         num_w = num_bbox[2] - num_bbox[0]
         num_x = gutter_w - 18 - num_w
         draw.text((num_x, curr_y), line_num_str, font=gutter_font, fill=hex_to_rgb(VSCODE_COLORS["line_number"]))
 
-        # Code Tokens
         curr_x = gutter_w
         for tok in line:
             raw_text = tok["text"].replace("\t", "    ")
@@ -233,7 +229,6 @@ def render_code_to_image(src_path: str, out_path: str, profile_path=None):
 
         curr_y += line_h
 
-    # Ensure parent directory exists and save
     out_file = Path(out_path)
     out_file.parent.mkdir(parents=True, exist_ok=True)
     img.save(str(out_file), "PNG", dpi=(150, 150))
