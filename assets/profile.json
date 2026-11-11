@@ -1,0 +1,36 @@
+{
+  "student_name": "",
+  "cms_id": "",
+  "class_section": "",
+  "department": "Department of Computer Science",
+  "university": "University",
+  "os_shell_style": "powershell",
+  "terminal_prompt_template": "PS {cwd}> ",
+  "linux_prompt_template": "user@host:{cwd}$ ",
+  "vscode_settings": {
+    "theme_mode": "dark",
+    "background_hex": "#1E1E1E",
+    "terminal_bg_hex": "#181818",
+    "foreground_hex": "#D4D4D4",
+    "prompt_color_hex": "#569CD6",
+    "font_family_candidates": [
+      "C:/Windows/Fonts/consola.ttf",
+      "C:/Windows/Fonts/cascadiamono.ttf",
+      "/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf",
+      "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+    ],
+    "font_size_pt": 14,
+    "line_numbers": true
+  },
+  "report_styling": {
+    "font_name": "Times New Roman",
+    "all_black_text": true,
+    "no_italics": true,
+    "code_presentation": "plain_text",
+    "title_size_pt": 26,
+    "task_heading_size_pt": 22,
+    "section_heading_size_pt": 20,
+    "output_heading_size_pt": 18,
+    "code_font_size_pt": 10.5
+  }
+}

@@ -1,0 +1,5 @@
+plan.md
+.lab_workspace/
+submission/
+__pycache__/
+*.pyc
