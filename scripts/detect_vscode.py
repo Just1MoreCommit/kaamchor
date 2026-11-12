@@ -134,13 +134,19 @@ def resolve_font_file(font_family_str: str):
             matched_files.sort(key=font_priority)
             return str(matched_files[0][0]), matched_files[0][1]
 
-    # Fallback search for Consolas, Cascadia, DejaVu
-    fallback_slugs = ["consola", "cascadiamono", "cascadiacode", "dejavusansmono"]
-    for slug in fallback_slugs:
+    # Fallback search for Consolas, Cascadia, DejaVu (file stems differ from family names,
+    # e.g. consola.ttf is "Consolas"; Word needs the family name)
+    fallback_fonts = [
+        ("consola", "Consolas"),
+        ("cascadiamono", "Cascadia Mono"),
+        ("cascadiacode", "Cascadia Code"),
+        ("dejavusansmono", "DejaVu Sans Mono"),
+    ]
+    for slug, family in fallback_fonts:
         for fdir in font_dirs:
             for file_path in fdir.rglob("*"):
                 if file_path.suffix.lower() in (".ttf", ".otf") and slug in file_path.stem.lower():
-                    return str(file_path), file_path.stem
+                    return str(file_path), family
 
     return None, "Consolas"
 
