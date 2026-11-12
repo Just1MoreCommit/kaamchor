@@ -2,6 +2,8 @@
 
 Follow these rules strictly to ensure all generated code matches the natural coding style of an undergraduate student.
 
+> **Personal style first:** if `references/student-style.md` exists, it was learned from this student's own previous lab. Its habits (naming, spacing, braces, comments, prompts, language idioms) **replace** the generic habits in sections 2, 3, 5 and 6 below. Sections 1 and 4 (minimal scope, no assumptions, comment hygiene) always apply.
+
 ## 1. Strict Minimal Scope & No Assumptions (CRITICAL)
 - **NEVER** do anything more than what is explicitly required in the lab task or what the user specifies.
 - **NEVER assume anything about the lab task.** If at any point you are confused or requirements are ambiguous, **consult the user in a clear, basic manner** before proceeding.

@@ -21,16 +21,5 @@
     ],
     "font_size_pt": 14,
     "line_numbers": true
-  },
-  "report_styling": {
-    "font_name": "Times New Roman",
-    "all_black_text": true,
-    "no_italics": true,
-    "code_presentation": "plain_text",
-    "title_size_pt": 26,
-    "task_heading_size_pt": 22,
-    "section_heading_size_pt": 20,
-    "output_heading_size_pt": 18,
-    "code_font_size_pt": 10.5
   }
 }
