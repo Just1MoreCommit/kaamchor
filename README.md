@@ -9,6 +9,7 @@
 
 `kaamchor` automates the end-to-end workflow of solving university programming lab manuals and compiling submission reports:
 
+0. **Learns Your Style**: Reads a lab report you submitted before and copies your coding habits (naming, spacing, comments, prompts) and report layout (fonts, heading wording, labels, how code is shown). Each student's report looks like their own work, not a shared template.
 1. **Extracts Lab Manuals**: Parses `.pdf` and `.docx` manuals into structured Markdown while preserving tables and problem statements.
 2. **Clones & Injects Cover Page**: Clones Page 1 of the manual (or falls back to a clean template) and fills in student metadata (Name, CMS ID, Section).
 3. **Approval Gate & Verification**: Asks for user approval before writing code, confirming student details and the exact minimal scope.
@@ -26,7 +27,9 @@ kaamchor/
 ├── SKILL.md                          # Agent Skill entry point (YAML + SOP)
 ├── references/                       # Anti-AI guidelines loaded on-demand
 │   ├── coding-norms.md               # Student coding rules and conventions
-│   └── report-tone.md                # Human-like report explanations & formatting rules
+│   ├── report-tone.md                # Human-like report explanations & formatting rules
+│   ├── student-style.md              # (generated, gitignored) your learned coding/report habits
+│   └── report_style.json             # (generated, gitignored) your learned report layout
 ├── assets/                           # Metadata & templates
 │   ├── profile.json                  # Visual settings & student configuration template
 │   ├── fallback_cover.docx           # Default 1-page cover template
@@ -34,6 +37,7 @@ kaamchor/
 └── scripts/                          # Deterministic cross-platform CLI tools
     ├── requirements.txt              # Dependencies (pymupdf, docx, pygments, pillow, etc.)
     ├── extract_manual.py             # Parses PDF/DOCX text & isolates cover page
+    ├── extract_style.py              # Learns style from a previous lab report
     ├── capture_run.py                # Runs interactive CLI code & captures terminal PNG
     ├── render_code.py                # Syntax-highlights code to PNG or token streams
     └── build_report.py               # Assembles final Word report from manifest
@@ -99,8 +103,17 @@ python scripts/render_code.py --src "submission/src/task1.cpp" --out "./.lab_wor
 ### 4. `build_report.py`
 Assembles the final `.docx` submission report from `report_manifest.json`:
 ```bash
-python scripts/build_report.py --manifest "./.lab_workspace/report_manifest.json" --cover "./.lab_workspace/cover_page.docx"
+python scripts/build_report.py --manifest "./.lab_workspace/report_manifest.json" --cover "./.lab_workspace/cover_page.docx" --profile "assets/profile.json"
 ```
+Layout source, in priority order: `--style`, the manifest's `"style"`, `references/report_style.json`, a preset picked from your CMS ID, then the default layout.
+Always enforced: black text, no italics, no lab name after the cover page, no unrequested explanations or conclusion.
+
+### 5. `extract_style.py`
+Learns your style from a previous lab report (add the old source files with `--code` if the report shows code as screenshots):
+```bash
+python scripts/extract_style.py --input "Lab03_Report.docx" --code "old/task1.cpp" --out-dir "./.lab_workspace/style"
+```
+Writes `style_raw.json`, a draft `report_style.json`, and `code_samples/`. The agent reviews them and saves your style into `references/`. Say **"refresh my style"** at any time to learn it again from a newer report.
 
 ---
 

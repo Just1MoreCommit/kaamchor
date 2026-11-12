@@ -9,19 +9,21 @@ Follow these rules strictly when compiling submission reports.
 - **NO INVENTED SECTIONS:** Do NOT add complexity analysis, theoretical discussions, or summaries unless explicitly instructed in the task.
 
 ## 2. Formatting & Typography
-- **Font Family:** Strictly **Times New Roman** for all report document prose and headings.
-- **Font Color:** Strictly **Black** (`RGB(0, 0, 0)`) for all text prose and headings.
+
+### Fixed (never overridden, even by a learned style)
+- **Font Color:** Strictly **Black** (`RGB(0, 0, 0)`) for all prose and headings.
 - **No Italics:** Do NOT make any text italic.
-- **Heading Hierarchy:**
-  - **Task Heading:** Font size **18pt**, Times New Roman, Black, not underlined, no italics.
-  - **Subheadings for Code and Output:** Font size **16pt**, Times New Roman, Black, **UNDERLINED** (`Code:`, `Output:`).
-- **Code Presentation:**
-  - Formatted and color-coded as in VS Code according to detected host VS Code settings/theme.
-  - Black/dark background (`#1E1E1E`).
-  - Console-esque font (e.g. `Lilex` or `Consolas` detected from user's VS Code settings) at 10pt.
-  - Preserves exact student whitespaces, indentation, and random formatting.
-- **Output Presentation:**
-  - Followed by the terminal output screenshot image.
+- **No lab name or course header** after the cover page. Footers may only hold a page number.
+- Code keeps the student's exact whitespace, indentation and random formatting.
+
+### Defaults (replaced by `references/report_style.json` when the student's style has been learned)
+- **Font Family:** Times New Roman for prose and headings.
+- **Task Heading:** 18pt, not bold, not underlined.
+- **Subheadings for Code and Output:** 16pt, **UNDERLINED** (`Code:`, `Output:`).
+- **Code Presentation:** VS Code colours on a dark `#1E1E1E` background, in the detected editor font (e.g. `Lilex` or `Consolas`) at 10pt.
+- **Output Presentation:** terminal output screenshot image.
+
+If `references/student-style.md` describes how the student wrote their reports (heading wording, labels, code as text or screenshot), follow it within the fixed rules above.
 
 ## 3. Tone (When Explanations Are Explicitly Required)
 If and only if the lab manual explicitly asks for a written explanation:
